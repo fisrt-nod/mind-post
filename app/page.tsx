@@ -195,7 +195,7 @@ export default function Home() {
                   type="text"
                   value={senderName}
                   onChange={(e) => setSenderName(e.target.value)}
-                  placeholder="예: 진하"
+                  placeholder="예: 민서"
                   className="w-full p-3 bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white"
                 />
               </div>
@@ -221,7 +221,7 @@ export default function Home() {
                   type="text"
                   value={relationship}
                   onChange={(e) => setRelationship(e.target.value)}
-                  placeholder="예: 10년 지기 친구"
+                  placeholder="예: 10년 지기"
                   className="w-full p-3 bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white"
                 />
               </div>
