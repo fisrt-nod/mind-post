@@ -141,7 +141,7 @@ export default function Home() {
           소중한 사람에게 다정한 마음을 선물하세요
         </h1>
         <p className="text-sm text-[#7A6E65] mt-2 font-light">
-          지혜로운 우체국장이 당신의 마음을 담아 가장 따뜻하고 명쾌한 위로 편지를 써드립니다.
+          지혜로운 우체국장이 당신의 마음을 담아 따뜻하고 명쾌한 위로 편지를 써드립니다.
         </p>
       </header>
 
@@ -154,9 +154,9 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-6">
             {(
               [
-                { id: 'empathy', label: '🌸 따뜻한 공감과 위로', desc: '지친 마음을 보듬어주는 톤' },
-                { id: 'mentor', label: '🧭 지혜로운 인생 조언', desc: '명쾌한 방향을 제시하는 톤' },
-                { id: 'cheerup', label: '🔥 유쾌한 응원과 용기', desc: '확실하게 기를 살려주는 톤' },
+                { id: 'empathy', label: '🌸 따뜻한 공감과 위로', desc: '지친 마음을 보듬어주는' },
+                { id: 'mentor', label: '🧭 지혜로운 인생 조언', desc: '명쾌하게 방향을 제시하는' },
+                { id: 'cheerup', label: '🔥 유쾌한 응원과 용기', desc: '확실하게 기를 살려주는' },
               ] as const
             ).map((tone) => (
               <button
@@ -263,7 +263,7 @@ export default function Home() {
                 type="text"
                 value={mustInclude}
                 onChange={(e) => setMustInclude(e.target.value)}
-                placeholder="예: 이번 면접 끝나면 내가 제일 좋아하는 삼겹살 사줄게! 늘 응원해."
+                placeholder="예: 이번 면접 끝나면 네가 제일 좋아하는 삼겹살 사줄게! 늘 응원해."
                 className="w-full p-3 bg-[#FFF5F2]/50 border border-[#F5C6BC] rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white"
               />
               <p className="text-[11px] text-gray-500 mt-1">
@@ -273,7 +273,7 @@ export default function Home() {
 
             <div className="bg-[#FFFDF9] border border-[#F3E2CE] rounded-xl p-3.5 text-xs text-[#8A6A4B] leading-relaxed">
               💡 <strong>단돈 900원</strong>으로 세상에 단 하나뿐인 맞춤형 위로 편지를 선물하세요.
-              지혜로운 제3자의 시선으로 잊지 못할 감동을 전달해 드립니다.
+              지혜로운 제3자의 시선으로 힘이 되는 감동을 전달해 드립니다.
             </div>
 
             <button
@@ -346,7 +346,7 @@ export default function Home() {
       )}
 
       <footer className="text-center text-xs text-[#7A6E65] my-6 font-light">
-        © 마음우체국 1호점 | 당신의 밤이 조금 더 다정해지기를 마음 담아 배달합니다.
+        © 마음우체국 1호점 | 당신의 진심이 잘 전해지길 정성을 담아 배달합니다.
       </footer>
     </main>
   );
