@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import LZString from 'lz-string'; // ★ 문자열 압축 라이브러리 추가
 
 type AdviceTone = 'empathy' | 'mentor' | 'cheerup';
 type Step = 'form' | 'loading' | 'letter';
@@ -9,7 +10,6 @@ export default function Home() {
   const [selectedTone, setSelectedTone] = useState<AdviceTone>('empathy');
   const [step, setStep] = useState<Step>('form');
 
-  // 선물용 마음우체국 입력 상태
   const [senderName, setSenderName] = useState('');
   const [receiverName, setReceiverName] = useState('');
   const [relationship, setRelationship] = useState('');
@@ -17,7 +17,6 @@ export default function Home() {
   const [story, setStory] = useState('');
   const [mustInclude, setMustInclude] = useState('');
 
-  // 답장 및 UI 상태
   const [letterText, setLetterText] = useState('');
   const [displayText, setDisplayText] = useState('');
   const [isTypingComplete, setIsTypingComplete] = useState(false);
@@ -25,7 +24,6 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // ★ 공유 링크 모달 상태
   const [shareUrl, setShareUrl] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -113,7 +111,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [step, letterText, isEditing]);
 
-  // ★ 편지 데이터를 Base64로 안전하게 압축하여 수신자 전용 URL 생성
+  // ★ [핵심 변경] LZString을 사용하여 한글 텍스트를 고압축 URL로 변환
   const handleProceedToGift = () => {
     try {
       const payload = {
@@ -121,8 +119,9 @@ export default function Home() {
         r: receiverName.trim(),
         t: letterText,
       };
-      const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
-      const fullUrl = `${window.location.origin}/letter?data=${encoded}`;
+      // 텍스트를 URL 안전 형식으로 강력하게 압축
+      const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload));
+      const fullUrl = `${window.location.origin}/letter?data=${compressed}`;
       setShareUrl(fullUrl);
       setShowShareModal(true);
     } catch {
@@ -133,7 +132,7 @@ export default function Home() {
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      alert('💌 수신자 전용 봉투 링크가 복사되었습니다!\n카카오톡으로 친구에게 링크를 선물해 보세요.');
+      alert('💌 압축된 시크릿 링크가 복사되었습니다!\n카카오톡으로 선물해 보세요.');
     } catch {
       alert('복사에 실패했습니다. 아래 주소를 직접 복사해 주세요.');
     }
@@ -376,7 +375,6 @@ export default function Home() {
               </button>
             )}
 
-            {/* ★ B단계 호출: 선물 링크 발급 버튼 */}
             <button
               onClick={handleProceedToGift}
               className="w-full bg-[#E86F51] hover:bg-[#D85F41] text-white text-sm font-bold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -402,7 +400,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* ★ 선물 링크 생성 및 공유 모달 창 */}
       {showShareModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#EFEAE1]">

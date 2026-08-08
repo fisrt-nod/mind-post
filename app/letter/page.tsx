@@ -3,13 +3,14 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import LZString from 'lz-string'; // ★ 문자열 압축 해제 라이브러리 추가
 
 function EnvelopeContent() {
   const searchParams = useSearchParams();
   const [senderName, setSenderName] = useState('');
   const [receiverName, setReceiverName] = useState('');
   const [letterText, setLetterText] = useState('');
-  const [isOpen, setIsOpen] = useState(false); // 봉투 열림 여부
+  const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -19,9 +20,11 @@ function EnvelopeContent() {
       return;
     }
     try {
-      // Base64 URL 안전 복원 및 JSON 파싱
-      const decodedJson = decodeURIComponent(atob(data));
-      const parsed = JSON.parse(decodedJson) as { s: string; r: string; t: string };
+      // ★ [핵심 변경] LZString을 이용해 압축된 URL 데이터를 안전하게 해제
+      const decompressedJson = LZString.decompressFromEncodedURIComponent(data);
+      if (!decompressedJson) throw new Error('압축 해제 실패');
+
+      const parsed = JSON.parse(decompressedJson) as { s: string; r: string; t: string };
       setSenderName(parsed.s || '소중한 사람');
       setReceiverName(parsed.r || '당신');
       setLetterText(parsed.t || '');
@@ -53,7 +56,6 @@ function EnvelopeContent() {
   return (
     <main className="min-h-screen bg-[#FDFBF7] text-[#332C27] flex flex-col items-center justify-center p-4 sm:p-8 font-sans overflow-hidden">
       <div className="w-full max-w-xl flex flex-col items-center">
-        {/* 아직 봉투를 열기 전 상태 */}
         {!isOpen ? (
           <div className="w-full max-w-md bg-[#FFF9ED] border-2 border-[#E6DFD5] rounded-3xl p-8 sm:p-12 shadow-xl text-center flex flex-col items-center justify-center transition-all duration-500 transform hover:scale-[1.01] relative overflow-hidden my-6">
             <div className="w-14 h-14 bg-[#E86F51] text-white rounded-full flex items-center justify-center text-2xl shadow-md mb-6 animate-bounce">
@@ -80,7 +82,6 @@ function EnvelopeContent() {
             </button>
           </div>
         ) : (
-          /* 봉투를 뜯어 편지가 스르륵 나타난 상태 */
           <div className="w-full max-w-xl bg-[#FFFDF9] border border-[#EFEAE1] rounded-2xl p-6 sm:p-10 shadow-2xl my-6 animate-fade-in relative">
             <div className="border-b border-[#F3E2CE] pb-4 mb-6 flex justify-between items-center">
               <span className="text-xs font-bold text-[#E86F51] bg-[#FFF5F2] px-2.5 py-1 rounded-md">
