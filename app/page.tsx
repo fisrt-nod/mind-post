@@ -78,7 +78,10 @@ export default function Home() {
         throw new Error('답장을 받지 못했습니다.');
       }
 
-      setLetterText(data.letter);
+      // ★ [핵심 추가] 정규식(.replace)을 사용해 문장 속 모든 ** 기호를 즉시 삭제!
+      const cleanLetter = data.letter.replace(/\*\*/g, '');
+
+      setLetterText(cleanLetter);
       setStep('letter');
     } catch (error) {
       const message =
