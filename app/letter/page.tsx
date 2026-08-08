@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import LZString from 'lz-string'; // ★ 문자열 압축 해제 라이브러리 추가
+import { supabase } from '@/lib/supabase'; // ★ Supabase DB 클라이언트 연결
 
 function EnvelopeContent() {
   const searchParams = useSearchParams();
@@ -11,27 +11,53 @@ function EnvelopeContent() {
   const [receiverName, setReceiverName] = useState('');
   const [letterText, setLetterText] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    const data = searchParams.get('data');
-    if (!data) {
+    const id = searchParams.get('id');
+    if (!id) {
       setError(true);
+      setIsLoading(false);
       return;
     }
-    try {
-      // ★ [핵심 변경] LZString을 이용해 압축된 URL 데이터를 안전하게 해제
-      const decompressedJson = LZString.decompressFromEncodedURIComponent(data);
-      if (!decompressedJson) throw new Error('압축 해제 실패');
 
-      const parsed = JSON.parse(decompressedJson) as { s: string; r: string; t: string };
-      setSenderName(parsed.s || '소중한 사람');
-      setReceiverName(parsed.r || '당신');
-      setLetterText(parsed.t || '');
-    } catch {
-      setError(true);
-    }
+    const fetchLetterFromDB = async () => {
+      try {
+        // ★ Supabase letters 테이블에서 id가 일치하는 편지 단 1건 조회
+        const { data, error } = await supabase
+          .from('letters')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error || !data) {
+          throw new Error('편지를 찾을 수 없습니다.');
+        }
+
+        setSenderName(data.sender_name || '소중한 사람');
+        setReceiverName(data.receiver_name || '당신');
+        setLetterText(data.letter_text || '');
+      } catch {
+        setError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLetterFromDB();
   }, [searchParams]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="w-12 h-12 border-4 border-[#F3E2CE] border-t-[#E86F51] rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-serif text-[#7A6E65]">
+          우체함에서 편지 봉투를 꺼내는 중입니다...
+        </p>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -41,7 +67,7 @@ function EnvelopeContent() {
           편지 봉투를 찾을 수 없거나 손상되었습니다.
         </h2>
         <p className="text-xs text-[#7A6E65] mb-6">
-          링크가 제대로 복사되었는지 다시 한 번 확인해 주세요.
+          링크 주소가 바르게 입력되었는지 다시 한 번 확인해 주세요.
         </p>
         <Link
           href="/"

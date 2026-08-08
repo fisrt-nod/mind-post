@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import LZString from 'lz-string'; // ★ 문자열 압축 라이브러리 추가
+import { supabase } from '@/lib/supabase'; // ★ Supabase DB 클라이언트 연결
 
 type AdviceTone = 'empathy' | 'mentor' | 'cheerup';
 type Step = 'form' | 'loading' | 'letter';
@@ -26,6 +26,7 @@ export default function Home() {
 
   const [shareUrl, setShareUrl] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isSavingGift, setIsSavingGift] = useState(false); // ★ DB 저장 로딩 상태
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +79,7 @@ export default function Home() {
         throw new Error('답장을 받지 못했습니다.');
       }
 
-      // ★ [핵심 추가] 정규식(.replace)을 사용해 문장 속 모든 ** 기호를 즉시 삭제!
+      // ★ 마크다운 ** 기호 완벽 제거
       const cleanLetter = data.letter.replace(/\*\*/g, '');
 
       setLetterText(cleanLetter);
@@ -114,28 +115,47 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [step, letterText, isEditing]);
 
-  // ★ [핵심 변경] LZString을 사용하여 한글 텍스트를 고압축 URL로 변환
-  const handleProceedToGift = () => {
+  // ★ [핵심 변경] Supabase DB에 편지를 저장하고 25~30자 이내의 아주 짧은 ID URL 발급
+  const handleProceedToGift = async () => {
+    if (isSavingGift) return;
+    setIsSavingGift(true);
+
     try {
-      const payload = {
-        s: senderName.trim(),
-        r: receiverName.trim(),
-        t: letterText,
-      };
-      // 텍스트를 URL 안전 형식으로 강력하게 압축
-      const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload));
-      const fullUrl = `${window.location.origin}/letter?data=${compressed}`;
+      // 8자리 안전한 고유 난수 ID 생성 (예: a8f9k2c4)
+      const shortId =
+        Math.random().toString(36).substring(2, 8) +
+        Math.random().toString(36).substring(2, 4);
+
+      // Supabase letters 테이블에 편지 저장
+      const { error } = await supabase.from('letters').insert([
+        {
+          id: shortId,
+          sender_name: senderName.trim(),
+          receiver_name: receiverName.trim(),
+          letter_text: letterText,
+        },
+      ]);
+
+      if (error) {
+        console.error('Supabase 저장 에러:', error);
+        throw new Error('데이터베이스 저장 실패');
+      }
+
+      // ★ 초단축 URL 생성 (예: https://domain.com/letter?id=a8f9k2c4)
+      const fullUrl = `${window.location.origin}/letter?id=${shortId}`;
       setShareUrl(fullUrl);
       setShowShareModal(true);
     } catch {
-      alert('공유 링크 생성 중 오류가 발생했습니다.');
+      alert('공유 링크 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setIsSavingGift(false);
     }
   };
 
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      alert('💌 압축된 시크릿 링크가 복사되었습니다!\n카카오톡으로 선물해 보세요.');
+      alert('💌 짧고 깔끔한 시크릿 링크가 복사되었습니다!\n카카오톡으로 선물해 보세요.');
     } catch {
       alert('복사에 실패했습니다. 아래 주소를 직접 복사해 주세요.');
     }
@@ -380,9 +400,14 @@ export default function Home() {
 
             <button
               onClick={handleProceedToGift}
-              className="w-full bg-[#E86F51] hover:bg-[#D85F41] text-white text-sm font-bold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isSavingGift}
+              className="w-full bg-[#E86F51] hover:bg-[#D85F41] disabled:bg-[#E86F51]/60 text-white text-sm font-bold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              💌 이대로 봉투에 담아 선물 링크 만들기 (카카오톡 전송)
+              {isSavingGift ? (
+                <span>📮 안전한 우체함에 보관 중...</span>
+              ) : (
+                <span>💌 이대로 봉투에 담아 선물 링크 만들기 (카카오톡 전송)</span>
+              )}
             </button>
 
             <button
@@ -416,7 +441,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="bg-[#FAF8F5] border border-[#EFEAE1] rounded-xl p-3 mb-5 text-xs text-gray-600 break-all select-all font-mono max-h-24 overflow-y-auto">
+            <div className="bg-[#FAF8F5] border border-[#EFEAE1] rounded-xl p-3 mb-5 text-xs text-gray-800 font-bold break-all select-all font-mono max-h-24 overflow-y-auto border-dashed">
               {shareUrl}
             </div>
 
