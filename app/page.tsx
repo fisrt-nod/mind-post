@@ -21,8 +21,13 @@ export default function Home() {
   const [letterText, setLetterText] = useState('');
   const [displayText, setDisplayText] = useState('');
   const [isTypingComplete, setIsTypingComplete] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // ★ 공유 링크 모달 상태
+  const [shareUrl, setShareUrl] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +44,8 @@ export default function Home() {
     setStep('loading');
     setLetterText('');
     setDisplayText('');
+    setIsEditing(false);
+    setShowShareModal(false);
 
     try {
       const response = await fetch('/api/letter', {
@@ -85,9 +92,8 @@ export default function Home() {
     }
   };
 
-  // 타이핑 효과 (10ms마다 3글자씩 빠르게 출력)
   useEffect(() => {
-    if (step !== 'letter' || !letterText) return;
+    if (step !== 'letter' || !letterText || isEditing) return;
 
     let index = 0;
     setDisplayText('');
@@ -105,29 +111,47 @@ export default function Home() {
     }, 10);
 
     return () => clearInterval(timer);
-  }, [step, letterText]);
+  }, [step, letterText, isEditing]);
 
-  const handleCopyText = async () => {
+  // ★ 편지 데이터를 Base64로 안전하게 압축하여 수신자 전용 URL 생성
+  const handleProceedToGift = () => {
     try {
-      await navigator.clipboard.writeText(letterText);
-      alert('편지 내용이 클립보드에 복사되었습니다! 💌');
+      const payload = {
+        s: senderName.trim(),
+        r: receiverName.trim(),
+        t: letterText,
+      };
+      const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
+      const fullUrl = `${window.location.origin}/letter?data=${encoded}`;
+      setShareUrl(fullUrl);
+      setShowShareModal(true);
     } catch {
-      alert('복사에 실패했습니다. 직접 드래그해서 복사해 주세요.');
+      alert('공유 링크 생성 중 오류가 발생했습니다.');
     }
   };
 
-  const handleShare = async () => {
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('💌 수신자 전용 봉투 링크가 복사되었습니다!\n카카오톡으로 친구에게 링크를 선물해 보세요.');
+    } catch {
+      alert('복사에 실패했습니다. 아래 주소를 직접 복사해 주세요.');
+    }
+  };
+
+  const handleKakaoShare = async () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${receiverName}님을 위해 마음우체국에서 온 답장 📮`,
-          text: letterText,
+          title: `📮 [마음우체국] ${receiverName}님 앞으로 도착한 편지`,
+          text: `${senderName}님이 당신을 위해 보낸 다정한 마음이 담긴 봉투입니다. 열어보시겠어요?`,
+          url: shareUrl,
         });
       } catch {
         // 공유 취소 시 무시
       }
     } else {
-      handleCopyText();
+      handleCopyLink();
     }
   };
 
@@ -141,22 +165,21 @@ export default function Home() {
           소중한 사람에게 다정한 마음을 선물하세요
         </h1>
         <p className="text-sm text-[#7A6E65] mt-2 font-light">
-          지혜로운 우체국장이 당신의 마음을 담아 따뜻하고 명쾌한 위로 편지를 써드립니다.
+          지혜로운 우체국장이 당신의 마음을 담아 가장 따뜻하고 명쾌한 위로 편지를 써드립니다.
         </p>
       </header>
 
       {step === 'form' && (
         <div className="w-full max-w-xl bg-white border border-[#EFEAE1] rounded-2xl p-6 sm:p-8 shadow-sm">
-          {/* 1. 조언 톤앤매너 선택 */}
           <label className="block text-xs font-bold text-[#7A6E65] mb-2 uppercase tracking-wider">
             1. 어떤 방식의 위로와 조언이 필요한가요?
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-6">
             {(
               [
-                { id: 'empathy', label: '🌸 따뜻한 공감과 위로', desc: '지친 마음을 보듬어주는' },
-                { id: 'mentor', label: '🧭 지혜로운 인생 조언', desc: '명쾌하게 방향을 제시하는' },
-                { id: 'cheerup', label: '🔥 유쾌한 응원과 용기', desc: '확실하게 기를 살려주는' },
+                { id: 'empathy', label: '🌸 따뜻한 공감과 위로', desc: '지친 마음을 보듬어주는 톤' },
+                { id: 'mentor', label: '🧭 지혜로운 인생 조언', desc: '명쾌한 방향을 제시하는 톤' },
+                { id: 'cheerup', label: '🔥 유쾌한 응원과 용기', desc: '확실하게 기를 살려주는 톤' },
               ] as const
             ).map((tone) => (
               <button
@@ -185,7 +208,6 @@ export default function Home() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* 2. 보내는 사람 / 받는 사람 / 관계 / MBTI */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -195,7 +217,7 @@ export default function Home() {
                   type="text"
                   value={senderName}
                   onChange={(e) => setSenderName(e.target.value)}
-                  placeholder="예: 민서"
+                  placeholder="예: 진하"
                   className="w-full p-3 bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white"
                 />
               </div>
@@ -221,7 +243,7 @@ export default function Home() {
                   type="text"
                   value={relationship}
                   onChange={(e) => setRelationship(e.target.value)}
-                  placeholder="예: 10년 지기"
+                  placeholder="예: 10년 지기 친구"
                   className="w-full p-3 bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white"
                 />
               </div>
@@ -240,7 +262,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 3. 상대방이 겪고 있는 상황 및 고민 */}
             <div>
               <label className="block text-xs font-bold text-[#7A6E65] mb-1.5 uppercase tracking-wider">
                 2. 상대방이 지금 어떤 상황이나 어려움을 겪고 있나요?
@@ -254,7 +275,6 @@ export default function Home() {
               />
             </div>
 
-            {/* 4. ★ 꼭 포함되었으면 하는 문구 (결제 훅 포인트) */}
             <div>
               <label className="block text-xs font-bold text-[#E86F51] mb-1.5 uppercase tracking-wider">
                 3. 꼭 포함되었으면 하는 약속이나 한마디 (선택)
@@ -263,7 +283,7 @@ export default function Home() {
                 type="text"
                 value={mustInclude}
                 onChange={(e) => setMustInclude(e.target.value)}
-                placeholder="예: 이번 면접 끝나면 네가 제일 좋아하는 삼겹살 사줄게! 늘 응원해."
+                placeholder="예: 이번 면접 끝나면 내가 제일 좋아하는 삼겹살 사줄게! 늘 응원해."
                 className="w-full p-3 bg-[#FFF5F2]/50 border border-[#F5C6BC] rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white"
               />
               <p className="text-[11px] text-gray-500 mt-1">
@@ -273,7 +293,7 @@ export default function Home() {
 
             <div className="bg-[#FFFDF9] border border-[#F3E2CE] rounded-xl p-3.5 text-xs text-[#8A6A4B] leading-relaxed">
               💡 <strong>단돈 900원</strong>으로 세상에 단 하나뿐인 맞춤형 위로 편지를 선물하세요.
-              지혜로운 제3자의 시선으로 힘이 되는 감동을 전달해 드립니다.
+              지혜로운 제3자의 시선으로 잊지 못할 감동을 전달해 드립니다.
             </div>
 
             <button
@@ -301,33 +321,69 @@ export default function Home() {
 
       {step === 'letter' && (
         <div className="w-full max-w-xl bg-[#FFFDF9] border border-[#EFEAE1] rounded-2xl p-6 sm:p-10 shadow-lg my-4 relative">
+          <div className="bg-[#FFF5F2] border border-[#F5C6BC] rounded-xl p-3.5 mb-6 text-xs text-[#E86F51] font-medium leading-relaxed">
+            💡 <strong>우체국장의 초안이 완성되었습니다!</strong> <br />
+            내용을 확인해보시고, 수정이 필요한 단어나 우리 둘만의 표현이 있다면{' '}
+            <strong>[✍️ 편지 내용 직접 수정하기]</strong>를 눌러 진심을 다듬어주세요.
+          </div>
+
           <div className="border-b border-[#F3E2CE] pb-4 mb-6 flex justify-between items-center">
             <span className="text-xs font-bold text-[#E86F51] bg-[#FFF5F2] px-2.5 py-1 rounded-md">
-              📮 {receiverName}님 앞으로 도착한 편지
+              📮 {receiverName}님 앞으로 도착한 편지 (검토 중)
             </span>
             <span className="text-xs text-[#7A6E65]">의뢰인: {senderName}님</span>
           </div>
 
-          <div className="font-serif text-sm sm:text-base text-[#2A2421] leading-8 tracking-wide whitespace-pre-line min-h-[300px]">
-            {displayText}
-            {!isTypingComplete && (
-              <span className="inline-block w-1.5 h-4 bg-[#E86F51] ml-1 animate-ping"></span>
-            )}
-          </div>
+          {!isEditing ? (
+            <div className="font-serif text-sm sm:text-base text-[#2A2421] leading-8 tracking-wide whitespace-pre-line min-h-[300px]">
+              {displayText}
+              {!isTypingComplete && (
+                <span className="inline-block w-1.5 h-4 bg-[#E86F51] ml-1 animate-ping"></span>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-[#E86F51] block">
+                ✍️ 자유롭게 문장을 수정하거나 추가해 보세요:
+              </span>
+              <textarea
+                value={letterText}
+                onChange={(e) => setLetterText(e.target.value)}
+                rows={15}
+                className="w-full font-serif text-sm sm:text-base text-[#2A2421] leading-8 tracking-wide p-4 bg-white border-2 border-[#E86F51] rounded-xl focus:outline-none shadow-inner"
+              />
+            </div>
+          )}
 
-          <div className="mt-8 pt-6 border-t border-[#F3E2CE] flex flex-col sm:flex-row gap-2.5">
+          <div className="mt-8 pt-6 border-t border-[#F3E2CE] flex flex-col gap-2.5">
+            {!isEditing ? (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="w-full bg-white border-2 border-[#E86F51] text-[#E86F51] hover:bg-[#FFF5F2] text-xs font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                ✍️ 편지 내용 직접 수정하기 (단어/표현 다듬기)
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setDisplayText(letterText);
+                  setIsTypingComplete(true);
+                }}
+                className="w-full bg-[#2A2421] text-white hover:bg-black text-xs font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                ✅ 수정 완료 (최종 미리보기로 돌아가기)
+              </button>
+            )}
+
+            {/* ★ B단계 호출: 선물 링크 발급 버튼 */}
             <button
-              onClick={handleCopyText}
-              className="flex-1 bg-[#FAF8F5] border border-[#EFEAE1] hover:bg-[#EFEAE1] text-[#332C27] text-xs font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
+              onClick={handleProceedToGift}
+              className="w-full bg-[#E86F51] hover:bg-[#D85F41] text-white text-sm font-bold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              📋 텍스트 복사하기
+              💌 이대로 봉투에 담아 선물 링크 만들기 (카카오톡 전송)
             </button>
-            <button
-              onClick={handleShare}
-              className="flex-1 bg-[#FAF8F5] border border-[#EFEAE1] hover:bg-[#EFEAE1] text-[#332C27] text-xs font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
-            >
-              📤 편지 공유하기
-            </button>
+
             <button
               onClick={() => {
                 setStep('form');
@@ -336,17 +392,60 @@ export default function Home() {
                 setLetterText('');
                 setDisplayText('');
                 setErrorMessage('');
+                setIsEditing(false);
               }}
-              className="flex-1 bg-[#E86F51] text-white text-xs font-bold py-3.5 rounded-xl hover:bg-[#D85F41] transition-all flex items-center justify-center gap-1.5"
+              className="w-full bg-transparent hover:bg-[#FAF8F5] text-[#7A6E65] text-xs font-medium py-2.5 rounded-xl transition-all text-center mt-1"
             >
-              ✉️ 다른 편지 또 쓰기
+              🔄 처음부터 다시 작성하기
             </button>
           </div>
         </div>
       )}
 
+      {/* ★ 선물 링크 생성 및 공유 모달 창 */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#EFEAE1]">
+            <div className="text-center mb-4">
+              <div className="text-3xl mb-2">📮</div>
+              <h3 className="text-lg font-serif font-bold text-[#2A2421]">
+                {receiverName}님만의 시크릿 편지 봉투 생성 완료!
+              </h3>
+              <p className="text-xs text-[#7A6E65] mt-1">
+                아래 링크를 복사해서 카카오톡이나 메신저로 선물해보세요.
+              </p>
+            </div>
+
+            <div className="bg-[#FAF8F5] border border-[#EFEAE1] rounded-xl p-3 mb-5 text-xs text-gray-600 break-all select-all font-mono max-h-24 overflow-y-auto">
+              {shareUrl}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleKakaoShare}
+                className="w-full bg-[#FEE500] hover:bg-[#FDD800] text-[#191919] font-bold py-3.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+              >
+                💬 카카오톡 / 메신저로 바로 공유하기
+              </button>
+              <button
+                onClick={handleCopyLink}
+                className="w-full bg-[#E86F51] hover:bg-[#D85F41] text-white font-bold py-3.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+              >
+                📋 링크 복사하기
+              </button>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl text-xs transition-all mt-1"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="text-center text-xs text-[#7A6E65] my-6 font-light">
-        © 마음우체국 1호점 | 당신의 진심이 잘 전해지길 정성을 담아 배달합니다.
+        © 마음우체국 1호점 | 당신의 밤이 조금 더 다정해지기를 마음 담아 배달합니다.
       </footer>
     </main>
   );
